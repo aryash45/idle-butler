@@ -41,6 +41,10 @@ Use `--model`, `--idle-minutes`, `--poll-seconds`, and `--out` as needed. `--app
 
 Start the local UI with `python -m idle_butler ui`, or use the installed `idle-butler` command in place of `python -m idle_butler`.
 
+## Windows desktop build
+
+The repository includes a PyInstaller configuration for a single executable. On a machine with package access, install the build-only tool with `python -m pip install pyinstaller`, then run `powershell -ExecutionPolicy Bypass -File .\build_windows.ps1`. The result is `dist/IdleButler.exe`. Ollama and the selected model remain separate prerequisites; the executable does not bundle a multi-gigabyte model.
+
 ## Workflows
 
 The UI is the MVP workflow builder. Give a workflow a name, choose how long the computer must be idle, select its folders, and choose one or more built-in steps: summarize text, extract explicit action items, or propose cleanup suggestions. Idle Butler shows the workflow preview before starting and pauses when you return. Only the selected steps call the local model.
