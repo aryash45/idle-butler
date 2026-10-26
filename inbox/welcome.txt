@@ -1,0 +1,3 @@
+Idle Butler watches this folder while you are away.
+It summarizes text locally with Ollama.
+

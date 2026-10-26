@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+build/
+dist/
+*.egg-info/
+idle_butler-settings.json
+.idle_butler_state.json
+digest.md
+cleanup-plan.json
+cleanup-log.json
+cleanup-plan-state.json
+

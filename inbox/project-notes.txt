@@ -1,0 +1,3 @@
+The first release is intentionally small.
+It handles plain text and Markdown files without changing the originals.
+

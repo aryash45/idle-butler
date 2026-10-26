@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "idle-butler"
+version = "0.3.0"
+description = "A local, standard-library-first idle-time assistant powered by Ollama."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+license = {file = "LICENSE"}
+
+[project.scripts]
+idle-butler = "idle_butler.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["idle_butler*"]
+
+[tool.setuptools.package-data]
+idle_butler = ["ui/index.html"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+

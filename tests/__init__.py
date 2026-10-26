@@ -1,0 +1,2 @@
+"""Idle Butler tests."""
+

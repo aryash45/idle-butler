@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Idle Butler</title>
+  <style>
+    :root { color-scheme: light dark; --bg: #101217; --card: #191c24; --text: #edf0f7; --muted: #aab1c2; --line: #303747; --accent: #82aaff; }
+    @media (prefers-color-scheme: light) { :root { --bg: #f5f7fb; --card: #fff; --text: #18202f; --muted: #657086; --line: #dce2ed; --accent: #315fd3; } }
+    * { box-sizing: border-box; } body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif; }
+    main { max-width: 980px; margin: 0 auto; padding: 32px 20px 64px; } header { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px; }
+    h1 { margin: 0; font-size: 28px; letter-spacing: -.02em; } h2 { font-size: 18px; margin-top: 0; } section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin: 16px 0; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+    label { display:block; color:var(--muted); margin: 12px 0 4px; } input, select, button { font: inherit; border-radius: 8px; border: 1px solid var(--line); padding: 9px 11px; } input, select { width:100%; color:var(--text); background:transparent; }
+    button { background:var(--accent); color:#fff; border-color:transparent; cursor:pointer; margin: 8px 6px 0 0; } button.secondary { background:transparent; color:var(--text); border-color:var(--line); } button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; } .status { color:var(--muted); min-height: 24px; white-space:pre-line; } .ok { color:#55c878; } .bad { color:#ff8d8d; } pre { white-space:pre-wrap; overflow:auto; background:rgba(127,127,127,.09); padding:16px; border-radius:8px; max-height:520px; }
+    progress { width:100%; height:12px; } .hidden { display:none; } .check { display:flex; gap:8px; align-items:center; color:var(--text); } .check input { width:auto; }
+    .eyebrow { color:var(--accent); font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; margin:0 0 4px; } small { display:block; color:var(--muted); margin-top:4px; }
+  </style>
+</head>
+<body>
+<main>
+  <header><div><p class="eyebrow">Local-first idle workflows</p><h1>Idle Butler</h1></div><span id="status" class="status">Checking local setup</span></header>
+  <section><h2>1. Build your workflow</h2><p class="status">Choose what Idle Butler should do while you are away. It will preview the workflow before running it.</p><div class="grid"><div><label for="workflow-name">Workflow name</label><input id="workflow-name" value="Process my files"></div><div><label for="idle-minutes">Run after idle minutes</label><input id="idle-minutes" type="number" min="0" step="1" value="5"></div><div><label for="model">Local Ollama model</label><input id="model" value="llama3.2:3b"></div></div><div class="grid"><div><label for="folder">Notes folder</label><input id="folder" placeholder="sample/inbox"><small>Used by summary and action-item steps.</small></div><div><label for="messy">Files to organize</label><input id="messy" placeholder="sample/messy"><small>Used only by the cleanup step.</small></div><div><label for="out">Digest path</label><input id="out" value="digest.md"></div></div><label>Workflow steps</label><label class="check"><input id="summarize" type="checkbox" checked> Summarize text files</label><label class="check"><input id="actions" type="checkbox" checked> Extract explicit action items</label><label class="check"><input id="cleanup" type="checkbox" checked> Propose cleanup suggestions</label><label class="check"><input id="auto" type="checkbox"> Auto-organize high-confidence files</label><p id="preview" class="status"></p><button id="save">Save workflow</button><button id="pull" class="secondary">Download model</button><progress id="progress" value="0" max="1"></progress></section>
+  <section><h2>2. Let it work</h2><p id="health" class="status">Checking local setup</p><button id="start">Start workflow</button><button id="now">Run now</button><button id="stop" class="secondary">Stop</button><p id="run-status" class="status">Stopped</p></section>
+  <section><h2>Results</h2><button id="apply" class="secondary">Apply plan</button><button id="undo" class="secondary">Undo moves</button><pre id="digest">No digest loaded.</pre></section>
+</main>
+<script>
+const token = new URLSearchParams(location.search).get('token') || '';
+const api = (path, options={}) => fetch(path + '?token=' + encodeURIComponent(token), options).then(async r => { const data = await r.json(); if (!r.ok) throw new Error(data.error || 'Request failed'); return data; });
+const el = id => document.getElementById(id);
+const settings = (now=false) => ({workflow_name:el('workflow-name').value || 'My workflow', idle_minutes:Number(el('idle-minutes').value || 5), folder:el('folder').value || null, messy:el('messy').value || null, out:el('out').value || 'digest.md', model:el('model').value || 'llama3.2:3b', actions:[...(el('summarize').checked ? ['summarize'] : []), ...(el('actions').checked ? ['actions'] : []), ...(el('cleanup').checked ? ['cleanup'] : [])], auto:el('auto').checked, now});
+function showError(error) { el('status').textContent = error.message; el('status').className = 'status bad'; }
+function updatePreview() { const s=settings(); const labels={summarize:'summarize text files',actions:'extract action items',cleanup:'propose cleanup suggestions'}; el('preview').textContent = s.actions.length ? `${s.workflow_name} will ${s.actions.map(x=>labels[x]).join(', ')} after ${s.idle_minutes} idle minutes.` : 'Choose at least one workflow step.'; }
+async function loadSettings() { try { const s=await api('/api/settings'); if (!s || !Object.keys(s).length) return; el('workflow-name').value=s.workflow_name || 'Process my files'; el('idle-minutes').value=s.idle_minutes ?? 5; el('folder').value=s.folder || ''; el('messy').value=s.messy || ''; el('out').value=s.out || 'digest.md'; el('model').value=s.model || 'llama3.2:3b'; el('auto').checked=!!s.auto; (s.actions || ['summarize','actions','cleanup']).forEach(x=>{if(el(x)) el(x).checked=true;}); ['summarize','actions','cleanup'].filter(x=>!(s.actions || []).includes(x)).forEach(x=>{if(s.actions) el(x).checked=false;}); updatePreview(); } catch(e){showError(e);} }
+async function refresh() { try { const h = await api('/api/health'); el('health').textContent = h.checks.map(x => `${x.name}: ${x.ok ? 'ok' : 'not ready'}${x.fix ? ' — ' + x.fix : ''}`).join('\n'); const s = await api('/api/status'); el('run-status').textContent = s.error || s.status; const d = await api('/api/digest'); el('digest').textContent = d.digest || 'No digest loaded.'; } catch (e) { showError(e); } }
+el('save').onclick = async () => { try { const s=settings(); if(!s.actions.length) throw new Error('Choose at least one workflow step.'); await api('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(s)}); el('status').textContent='Workflow saved'; updatePreview(); } catch(e){showError(e);} };
+el('pull').onclick = async () => { try { await api('/api/pull', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({model:el('model').value})}); el('status').textContent='Model download started'; } catch(e){showError(e);} };
+el('start').onclick = async () => { try { const s=settings(); await api('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(s)}); await api('/api/start', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(s)}); el('status').textContent='Workflow started'; } catch(e){showError(e);} };
+el('now').onclick = async () => { try { const s=settings(true); await api('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(s)}); await api('/api/start', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(s)}); el('status').textContent='Workflow started'; } catch(e){showError(e);} };
+el('stop').onclick = async () => { try { await api('/api/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'}); } catch(e){showError(e);} };
+el('apply').onclick = async () => { if (!confirm('Apply the cleanup plan?')) return; try { await api('/api/apply', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({messy:el('messy').value})}); refresh(); } catch(e){showError(e);} };
+el('undo').onclick = async () => { if (!confirm('Undo logged moves?')) return; try { await api('/api/undo', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({messy:el('messy').value})}); refresh(); } catch(e){showError(e);} };
+['workflow-name','idle-minutes','summarize','actions','cleanup','auto'].forEach(id=>el(id).addEventListener('input',updatePreview));
+setInterval(refresh, 2000); updatePreview(); loadSettings(); refresh();
+</script>
+</body>
+</html>
+

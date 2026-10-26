@@ -1,0 +1,3 @@
+Future ideas include tagging and PDF support.
+Those ideas are not part of Stage 1.
+
